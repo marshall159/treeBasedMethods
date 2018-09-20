@@ -1,0 +1,273 @@
+---
+title: "Tree-based Methods"
+author: "Aneel Marshall"
+date: "8 December 2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+### 1. Random Forest
+
+### a)
+
+```{r}
+library(MASS)
+library(randomForest)
+set.seed(1)
+train = sample(1:nrow(Boston), nrow(Boston) / 2)
+
+p = 13
+p.div2 = 6
+p.sq = 3
+
+bag.boston = randomForest(medv ~. , data = Boston, subset = train, mtry = p, importance = TRUE)
+rf1.boston = randomForest(medv ~. , data = Boston, subset = train, mtry = p.div2, importance = TRUE)
+rf2.boston = randomForest(medv ~. , data = Boston, subset = train, mtry = p.sq, importance = TRUE)
+
+#plot(bag.boston$size, bag.boston$dev, col="orange", type="l", xlab="Number of Trees", ylab="Test Classification Error")
+
+```
+Single tree MSE highest
+Bagged MSE lower
+Random forest MSE lowest
+
+
+### 2. Regression Tree
+
+### a)
+
+```{r}
+library(ISLR)
+library(tree)
+set.seed(1)
+train = sample(1:nrow(Carseats), nrow(Carseats) / 2)
+Carseats.test = Carseats[-train,]
+Carseats.train = Carseats[train,]
+#dim(Carseats.test)
+#dim(Carseats.train)
+#Carseats[1:10]
+#Carseats.train[1:5]
+#Carseats.test[1:5]
+```
+
+
+
+### b)
+
+```{r}
+tree.carseats.train = tree(Sales ~. , data = Carseats, subset = train)
+plot(tree.carseats.train)
+text(tree.carseats.train, pretty = 0)
+summary(tree.carseats.train)
+```
+
+In this example with the response as a quantitative variable and a regression tree, the deviance refers to the of sum squared errors for the tree. Thus, the training MSE is 2.36 
+
+```{r}
+yhat = predict(tree.carseats.train, Carseats.test)
+carseats.sales.test = Carseats.test$Sales
+plot(yhat, carseats.sales.test)
+abline(0,1)
+mean((yhat - carseats.sales.test)^2)
+```
+
+Test MSE is 4.148897
+
+### c)
+
+```{r}
+cv.carseats = cv.tree(tree.carseats.train)
+plot(cv.carseats$size, cv.carseats$dev, type = 'b')
+cv.carseats
+prune.carseats = prune.tree(tree.carseats.train, best = 12)
+plot(prune.carseats)
+text(prune.carseats, pretty = 0)
+#
+yhat.prune = predict(prune.carseats, Carseats.test)
+carseats.sales.test = Carseats.test$Sales
+plot(yhat.prune, carseats.sales.test)
+abline(0,1)
+mean((yhat.prune - carseats.sales.test)^2)
+```
+Test MSE with pruned tree is 4.610322. Pruning does not improve the test MSE, but the tree is slightly more interpretable.
+
+
+
+
+### d)
+
+```{r}
+library(randomForest)
+set.seed(1)
+bag.carseats = randomForest(Sales ~. , data = Carseats, subset = train, mtry = 10, importance = TRUE)
+bag.carseats
+yhat.bag = predict(bag.carseats, Carseats.test)
+plot(yhat.bag, carseats.sales.test)
+abline(0,1)
+mean((yhat.bag - carseats.sales.test)^2)
+importance(bag.carseats)
+```
+
+Bagged test MSE is 2.554292
+Results show that 'Price', 'ShelveLoc' and 'Age' are the most important variables. These correspond to the price for carseats at each location, the shelving location in the store, and the average age of the local population as being the most important factors in determining Sales.
+
+
+### e)
+
+```{r}
+set.seed(1)
+rf.carseats = randomForest(Sales ~. , data = Carseats, subset = train, mtry = 4, importance = TRUE)
+yhat.rf = predict(rf.carseats, Carseats.test)
+plot(yhat.rf, carseats.sales.test)
+abline(0,1)
+mean((yhat.rf - carseats.sales.test)^2)
+importance(rf.carseats)
+```
+Test MSE is xxxxxxx # Run again for multiple values of m
+The same variables are again the most important: 'Price', 'ShelveLoc' and 'Age'. These variables correspond to the price for carseats at each location, the shelving location in the store, and the average age of the local population.
+Varying the value of m produces different values of test MSE, from xxxxxx to xxxxxxx. 
+
+
+
+### 3. Classification Tree
+
+### a)
+
+```{r}
+library(ISLR)
+library(tree)
+set.seed(1)
+train = sample(1:nrow(OJ), 800)
+Oj.train = OJ[train,]
+Oj.test = OJ[-train,]
+#dim(oj.train)
+#dim(oj.test)
+```
+
+
+
+### b)
+
+
+```{r}
+oj.tree = tree(Purchase ~. , data = OJ, subset = train)
+summary(oj.tree)
+```
+
+Tree uses only 4 of 17 variables in construction. The first split is loyalty to Citrus Hill and is thus the most important variable. 
+The training error rate is 0.165 or 16.5%. 
+Tree has 7 terminal nodes. 
+
+### c)
+
+
+```{r}
+oj.tree
+```
+Terminal node 8:
+First value shows the split criterion which is 'LoyalCH' (Customer loyalty for Citrus Hill) less than 0.0356415.
+Value 57 shows how many observations in this branch
+Value 10.07 shows the deviance
+MM shows the overall prediction for this branch, that following these criteria customers would purchase MM (Minute Maid)
+Final values demonstrate fraction of observations in that branch which take on values of CH or MM. 0.01754 for CH and 0.98246 for MM.
+* indicates this is a terminal node
+
+
+
+### d)
+
+
+```{r}
+plot(oj.tree)
+text(oj.tree, pretty = 0)
+```
+Decision tree shows that the first split occurs at 'LoyalCH', loyalty to Citrus Hill, < 0.5087. This is the most important variable which has the biggest impact. For example, the first three top internal nodes are all 'LoyalCH'
+There are 8 terminal nodes which predict the outcome of the purchase, either CH, Citrus Hill or MM, Minute Maid. 
+The tree appears to show that if loyalty to CH is low (< 0.51) then the choice of juice is split between MM and CH.
+If loyalty to CH is very low < 0.26 then MM is predicted. 
+If loyalty to CH is >= 0.26 then the outcome also depends on the price difference 'PriceDiff' and is split between MM and CH. 
+However, if loyalty to CH is high (>= 0.51) then the outcome is predicted as CH. 
+
+
+
+### e)
+
+```{r}
+oj.pred = predict(oj.tree, Oj.test, type = 'class')
+Purchase.oj.test = Oj.test$Purchase
+table(oj.pred, Purchase.oj.test)
+(147 + 62) / 270
+(12 + 49) / 270
+```
+Correct predictions of 77.4%
+Test error rate of 22.59%
+
+
+
+### f)
+
+```{r}
+set.seed(1)
+cv.oj = cv.tree(oj.tree, FUN = prune.misclass)
+names(cv.oj)
+cv.oj
+```
+The optimal tree size appears to be either 8 terminal nodes or 5 terminal nodes with equal error rate of 152 cross-validation errors. Therefore, we can potentially prune the tree back a little to improve interpretability without losing accutacy. 
+
+
+
+### g)
+
+```{r}
+plot(cv.oj$size, cv.oj$dev, xlab = 'Tree size', ylab = 'Cross-validation error rate', type = 'b')
+```
+
+
+
+
+### h)
+
+A tree size of 5 terminal nodes corresponds to the lowest cross-validation error rate.
+
+
+
+### i)
+
+```{r}
+prune.oj = prune.misclass(oj.tree, best = 5)
+plot(prune.oj)
+text(prune.oj, pretty = 0)
+```
+
+
+
+### j)
+
+```{r}
+summary(prune.oj)
+```
+The training error rates between pruned and unpruned trees are equal at 16.5%. 
+
+
+### k)
+
+```{r}
+unpruned.pred = predict(oj.tree, Oj.test, type = 'class')
+table(unpruned.pred, Purchase.oj.test)
+(147 + 62) / 270
+(12 + 49) / 270
+
+prune.pred = predict(prune.oj, Oj.test, type = 'class')
+table(prune.pred, Purchase.oj.test)
+(147 + 62) / 270
+(12 + 49) / 270
+```
+Correct predictions of 77.4%
+Test error rates of 22.59%
+
+The test error rates of pruned and unpruned trees is exactly equal. 
+There is no difference in accuracy between the two and therefore it is beneficial to use the pruned tree as interpretability is increased. 
+
+
